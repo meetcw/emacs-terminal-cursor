@@ -1,0 +1,20 @@
+* Terminal cursor
+ 
+Allow change cursor shape and color in terminal
+
+This project is based on [[https://github.com/7696122/evil-terminal-cursor-changer][evil-terminal-cursor-changer]]. by watch ~cursor-type~ and an advice function for ~set-cursor-color~, it can works on other scenes now.
+
+** Installation
+
+*** With [[https://github.com/raxod502/straight.el][straight.el]]
+
+#+begin_src emacs-lisp
+(straight-use-package
+ '(terminal-cursor :host github :repo "meetcw/emacs-terminal-cursor"
+            :branch "main"))
+(terminal-cursor-mode 1)
+#+end_src
+
+** Inspirations
+
+[[https://github.com/7696122/evil-terminal-cursor-changer][7696122/evil-terminal-cursor-changer]]
