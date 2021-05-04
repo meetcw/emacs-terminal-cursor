@@ -98,7 +98,9 @@
 
 (defun terminal-cursor--make-cursor-shape (shape)
   "Make escape sequence for cursor shape."
-  (let ((terminal-type (terminal-cursor--terminal-type)))
+  (let ((terminal-type (terminal-cursor--terminal-type))
+        (shape (if (consp shape)
+                   (car shape) shape)))
     (cond ((eq terminal-type 'konsole)
            (terminal-cursor--make-konsole-cursor-shape shape))
           (terminal-type (terminal-cursor--make-xterm-cursor-shape shape))
@@ -106,36 +108,40 @@
 
 (defun terminal-cursor--make-cursor-color (color)
   "Make escape sequence for cursor color."
-  (or (when-let ((hex-color (apply 'color-rgb-to-hex (color-name-to-rgb color)))
-                 (terminal-type (terminal-cursor--terminal-type))
-                 (prefix (if (eq terminal-type 'iterm) "\e]Pl" "\e]12;"))
-                 (suffix (if (eq terminal-type 'iterm) "\e\\" "\a")))
-        ;; https://www.iterm2.com/documentation-escape-codes.html
-        (concat prefix
-                ;; https://www.iterm2.com/documentation-escape-codes.html
-                ;; Remove #, rr, gg, bb are 2-digit hex value for iTerm.
-                (if (and (terminal-cursor--in-tmux)
-                         (string-prefix-p "#" hex-color))
-                    (substring hex-color 1) hex-color) suffix))
-      ""))
+  (when-let ((color (color-name-to-rgb color))
+             (hex-color (apply 'color-rgb-to-hex color))
+             (terminal-type (terminal-cursor--terminal-type))
+             (prefix (if (eq terminal-type 'iterm) "\e]Pl" "\e]12;"))
+             (suffix (if (eq terminal-type 'iterm) "\e\\" "\a")))
+    ;; https://www.iterm2.com/documentation-escape-codes.html
+    (concat prefix
+            ;; https://www.iterm2.com/documentation-escape-codes.html
+            ;; Remove #, rr, gg, bb are 2-digit hex value for iTerm.
+            (if (and (terminal-cursor--in-tmux)
+                     (string-prefix-p "#" hex-color))
+                (substring hex-color 1) hex-color) suffix)))
 
 (defun terminal-cursor-update-cursor()
   (interactive)
   (unless (display-graphic-p)
     (let ((shape cursor-type)
           (color (face-background 'cursor)))
-      (send-string-to-terminal (terminal-cursor--make-cursor-color color))
-      (send-string-to-terminal (terminal-cursor--make-cursor-shape shape)))))
+      (when-let ((color (terminal-cursor--make-cursor-color color)))
+        (send-string-to-terminal color))
+      (when-let ((shape (terminal-cursor--make-cursor-shape shape)))
+        (send-string-to-terminal shape)))))
 
 (defun terminal-cursor--set-cursor-color-advice(original-function &rest args)
   (let ((color (car args)))
     (if (display-graphic-p)
         (apply original-function args)
-      (send-string-to-terminal (terminal-cursor--make-cursor-color color)))))
+      (when-let ((color (terminal-cursor--make-cursor-color color)))
+        (send-string-to-terminal color)))))
 
 (defun terminal-cursor--cursor-type-watcher(symbol value operation where)
   (unless (display-graphic-p)
-    (send-string-to-terminal (terminal-cursor--make-cursor-shape value))))
+    (when-let ((shape (terminal-cursor--make-cursor-shape value)))
+      (send-string-to-terminal shape))))
 
 ;;;###autoload
 (define-minor-mode terminal-cursor-mode "Enable set curser color and shape in terminal."
